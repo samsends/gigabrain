@@ -15,7 +15,10 @@ index = pinecone.Index("xgpt")
 
 
 def query_text(text, message_history):
-    embedding = get_embedding(text + message_history[-1]["content"])
+    embedding_text = text
+    if len(message_history) > 2:
+        embedding_text = embedding_text + message_history[-2]["content"]
+    embedding = get_embedding(embedding_text)
 
     query_response = index.query(
         top_k=5,
