@@ -14,14 +14,14 @@ pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment="gcp-starter")
 index = pinecone.Index("xgpt")
 
 
-def query_text(text, message_history):
+def query_text(text, previous_messages):
     embedding_text = text
-    if len(message_history) > 2:
-        embedding_text = embedding_text + message_history[-2]["content"]
+    if len(previous_messages) > 2:
+        embedding_text = embedding_text + previous_messages[-2]["content"]
     embedding = get_embedding(embedding_text)
 
     query_response = index.query(
-        top_k=5,
+        top_k=10,
         include_values=True,
         include_metadata=True,
         vector=embedding,
@@ -41,16 +41,26 @@ def query_text(text, message_history):
 
     combined_context = "\n\n".join(context)
 
-    messages = [
-        {"role": "system", "content": "You are a scientist at a national lab."},
-    ]
-    messages = messages + message_history[-5:]
-    messages.append(
+    # system_message = [
+    #     {
+    #         "role": "system",
+    #         "content": "You are not only a brilliant scientist at the forefront of your field, but you also excel at breaking down complex ideas into digestible pieces, much like Richard Feynman or Neil deGrasse Tyson. Your passion for educating others elevates your work, making you both a researcher and an exceptional communicator.",
+    #     },
+    # ]
+    system_message = [
         {
-            "role": "assistant",
-            "content": f"this is additional context: {combined_context}",
+            "role": "system",
+            "content": "You are a brilliant scientist at the forefront of your field and excellent communicator.",
         },
-    )
+    ]
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"Respond to the following: {text}\n\n\nHere are some optional research snippets that you can use to enhance your answer, but re-explain the snippet if used because the reader has no access to it. : {combined_context}",
+        },
+    ]
+    messages = system_message + previous_messages[-5:] + messages
 
     response = openai.ChatCompletion.create(
         model="gpt-4", messages=messages, stream=True
@@ -73,6 +83,5 @@ if __name__ == "__main__":
         print("\n")
         text_input = input(Fore.WHITE + "Enter text to query: ")
         print("\n")
-        messages.append({"role": "user", "content": text_input})
         text_response = query_text(text_input, messages)
         messages.append({"role": "assistant", "content": text_response})
